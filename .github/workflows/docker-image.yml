@@ -32,7 +32,7 @@ jobs:
           platforms: linux/amd64 #,linux/arm64,linux/arm/v7
           push: ${{ github.event_name == 'push' }}
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/shanisma/pnex-firmware-builder:latest
-            ${{ secrets.DOCKER_USERNAME }}/shanisma/pnex-firmware-builder:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/shanisma/pnex-firmware-builder:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/shanisma/pnex-firmware-builder:buildcache,mode=max
+            ${{ secrets.DOCKER_USERNAME }}/pnex-firmware-builder:latest
+            ${{ secrets.DOCKER_USERNAME }}/pnex-firmware-builder:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/pnex-firmware-builder:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/pnex-firmware-builder:buildcache,mode=max
