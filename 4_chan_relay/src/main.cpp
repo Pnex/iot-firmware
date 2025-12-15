@@ -132,17 +132,13 @@ void setup() {
         delay(1000);
     }
 
-    // Decode host from base64
+    // Decode host for use in WebSocket URL (e.g., wss://HOST:port/path)
     unsigned char decodedHost[64];
     unsigned int decodedLength = decode_base64((const unsigned char*)host, decodedHost);
-    decodedHost[decodedLength] = '\0';
-
-    // Decode device_id from base64
-    unsigned char decodedID[64];
-    decodedLength = decode_base64((const unsigned char*)device_id, decodedID);
-    decodedID[decodedLength] = '\0';
+    decodedHost[decodedLength] = '\0';  // Null-terminate
 
     // Build WebSocket connection string
+    // Note: token and device_id are kept base64-encoded as the server expects them that way
     sprintf(websockets_connection_string, ws_format, decodedHost, SERVER_PORT, token, device_id);
     Serial.print("[WS] Connection string: ");
     Serial.println(websockets_connection_string);
