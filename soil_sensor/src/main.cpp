@@ -30,9 +30,9 @@ const unsigned long PING_INTERVAL = 5000;  // 5 seconds
 
 char websockets_connection_string[256];
 #if INSECURE
-    const char* ws_format = "wss://%s:%d/ws/sensor/ingest?token=%s&device_id=%s";
-#else
     const char* ws_format = "ws://%s:%d/ws/sensor/ingest?token=%s&device_id=%s";
+#else
+    const char* ws_format = "wss://%s:%d/ws/sensor/ingest?token=%s&device_id=%s";
 #endif
 
 // Connection tracking for loading animation
@@ -123,8 +123,9 @@ void setup() {
     displayManager.showLoadingProgressAnimated("pnex.io", currentProgress, nextProgress, "WS Setup...", 300);
     currentProgress = nextProgress;
 
-    // Use TLS for WebSocket, but do not verify the chain (only if INSECURE is true)
-    #if INSECURE
+    // Use TLS for WebSocket, but do not verify the chain (only for wss:// connections)
+    #if !INSECURE
+        // For wss:// connections (INSECURE=0), use setInsecure() for backward compatibility
         client.setInsecure();
     #endif
     // Run callback when messages are received

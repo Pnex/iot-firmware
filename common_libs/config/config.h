@@ -26,7 +26,7 @@
 #endif
 
 #ifndef INSECURE
-#define INSECURE 1  // Default to insecure (wss://) for backward compatibility
+#define INSECURE 0  // Default to secure (wss://) for backward compatibility
 #endif
 
 #ifndef SERVER_PORT

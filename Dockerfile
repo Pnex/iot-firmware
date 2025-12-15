@@ -21,5 +21,23 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # prebuild and fetch dependencies for soil_sensor firmware
+# Set default environment variables for build (dummy values for pre-build)
+# Note: HOST, TOKEN, DEVICE_ID are expected to be base64 encoded
+ENV WIFI_SSID=dummy
+ENV WIFI_PASSWORD=dummy
+ENV HOST='ZHVtbXk='
+ENV TOKEN='ZHVtbXk='
+ENV DEVICE_ID='ZHVtbXk='
+ENV INSECURE=0
+ENV SERVER_PORT=443
 RUN cd soil_sensor && pio run
 RUN cd 4_chan_relay && pio run
+
+# clean env var
+ENV WIFI_SSID=''
+ENV WIFI_PASSWORD=''
+ENV HOST=''
+ENV TOKEN=''
+ENV DEVICE_ID=''
+ENV INSECURE=''
+ENV SERVER_PORT=''

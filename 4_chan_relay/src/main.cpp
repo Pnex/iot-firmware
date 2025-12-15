@@ -61,9 +61,9 @@ bool waiting_for_pong = false;           // Flag to track if expecting PONG
 // WebSocket connection string
 char websockets_connection_string[256];
 #if INSECURE
-    const char* ws_format = "wss://%s:%d/ws/actuator/cast?token=%s&device_id=%s";
-#else
     const char* ws_format = "ws://%s:%d/ws/actuator/cast?token=%s&device_id=%s";
+#else
+    const char* ws_format = "wss://%s:%d/ws/actuator/cast?token=%s&device_id=%s";
 #endif
 
 // ============================================
@@ -370,7 +370,8 @@ void connectWiFi() {
 // ============================================
 void setupWebSocket() {
     // Configure WebSocket client
-    #if INSECURE
+    #if !INSECURE
+        // For wss:// connections (INSECURE=0), use setInsecure() for backward compatibility
         client.setInsecure();
     #endif
     client.onMessage(onMessageCallback);
