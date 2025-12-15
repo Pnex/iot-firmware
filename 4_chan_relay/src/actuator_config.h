@@ -64,8 +64,8 @@ const uint8_t RELAY_PINS[4] = {
 // ============================================
 // WebSocket Configuration
 // ============================================
-#define SERVER_PORT 443                      // WSS port
-#define USE_SSL true                         // Use secure WebSocket
+// SERVER_PORT is defined in common config.h (default: 443 for wss://)
+// USE_SSL is now controlled by INSECURE flag in common config.h
 #define WS_PATH_PREFIX "/ws/actuator/"       // WebSocket path prefix
 
 // ============================================

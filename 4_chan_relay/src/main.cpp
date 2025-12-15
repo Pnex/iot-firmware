@@ -60,7 +60,11 @@ bool waiting_for_pong = false;           // Flag to track if expecting PONG
 
 // WebSocket connection string
 char websockets_connection_string[256];
-const char* wss_format = "wss://%s/ws/actuator/cast?token=%s&device_id=%s";
+#if INSECURE
+    const char* ws_format = "wss://%s:%d/ws/actuator/cast?token=%s&device_id=%s";
+#else
+    const char* ws_format = "ws://%s:%d/ws/actuator/cast?token=%s&device_id=%s";
+#endif
 
 // ============================================
 // Function Declarations
@@ -139,7 +143,7 @@ void setup() {
     decodedID[decodedLength] = '\0';
 
     // Build WebSocket connection string
-    sprintf(websockets_connection_string, wss_format, decodedHost, token, device_id);
+    sprintf(websockets_connection_string, ws_format, decodedHost, SERVER_PORT, token, device_id);
     Serial.print("[WS] Connection string: ");
     Serial.println(websockets_connection_string);
 
@@ -366,7 +370,9 @@ void connectWiFi() {
 // ============================================
 void setupWebSocket() {
     // Configure WebSocket client
-    client.setInsecure();
+    #if INSECURE
+        client.setInsecure();
+    #endif
     client.onMessage(onMessageCallback);
     client.onEvent(onEventsCallback);
 }

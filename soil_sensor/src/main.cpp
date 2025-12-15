@@ -29,7 +29,11 @@ unsigned long lastPing = 0;
 const unsigned long PING_INTERVAL = 5000;  // 5 seconds
 
 char websockets_connection_string[256];
-const char* wss_format = "wss://%s/ws/sensor/ingest?token=%s&device_id=%s";
+#if INSECURE
+    const char* ws_format = "wss://%s:%d/ws/sensor/ingest?token=%s&device_id=%s";
+#else
+    const char* ws_format = "ws://%s:%d/ws/sensor/ingest?token=%s&device_id=%s";
+#endif
 
 // Connection tracking for loading animation
 bool wifi_connected = false;
@@ -110,7 +114,7 @@ void setup() {
     decodedID[decodedLength] = '\0';  // Null-terminate the string
 
     // Build the simplified connection string using sprintf
-    sprintf(websockets_connection_string, wss_format, decodedHost, token, device_id);
+    sprintf(websockets_connection_string, ws_format, decodedHost, SERVER_PORT, token, device_id);
     Serial.print("[WS] Connection string: ");
     Serial.println(websockets_connection_string);
 
@@ -119,8 +123,10 @@ void setup() {
     displayManager.showLoadingProgressAnimated("pnex.io", currentProgress, nextProgress, "WS Setup...", 300);
     currentProgress = nextProgress;
 
-    // Use TLS for WebSocket, but do not verify the chain
-    client.setInsecure();
+    // Use TLS for WebSocket, but do not verify the chain (only if INSECURE is true)
+    #if INSECURE
+        client.setInsecure();
+    #endif
     // Run callback when messages are received
     client.onMessage(onMessageCallback);
     // Run callback when events are occurring

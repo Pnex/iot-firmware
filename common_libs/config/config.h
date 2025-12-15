@@ -25,6 +25,14 @@
 #define DEVICE_ID "device_id_base64"
 #endif
 
+#ifndef INSECURE
+#define INSECURE 1  // Default to insecure (wss://) for backward compatibility
+#endif
+
+#ifndef SERVER_PORT
+#define SERVER_PORT 443  // Default port for wss://
+#endif
+
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
 const char* host = HOST;
