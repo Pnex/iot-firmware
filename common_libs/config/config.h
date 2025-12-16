@@ -31,7 +31,10 @@
 
 // ChaCha20 Encryption Key (44 characters base64)
 // This key is unique per device and obtained during provisioning
-#define ENCRYPTION_KEY "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+// Will be injected by build system via -D ENCRYPTION_KEY
+#ifndef ENCRYPTION_KEY
+#define ENCRYPTION_KEY "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="  // Default fallback for local development
+#endif
 
 #ifndef SERVER_PORT
 #define SERVER_PORT 443  // Default port for wss://
