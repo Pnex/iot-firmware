@@ -456,8 +456,10 @@ void onMessageCallback(WebsocketsMessage message) {
             Serial.printf("[Ping] <- PONG received (RTT: %lu ms)\n", rtt);
             #endif
         } else {
-            // Otherwise, treat as binary protobuf data
-            handleProtobufMessage((uint8_t*)decrypted.c_str(), decrypted.length());
+            // Use the full buffer with correct length
+            const uint8_t* data = (const uint8_t*)decrypted.c_str();
+            size_t length = decrypted.length();  // This is the real length, not c_str() length!
+            handleProtobufMessage((uint8_t*)data, length);
         }
     } else {
         Serial.println("[WS] << Unexpected message type (expected encrypted text)");
