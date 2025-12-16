@@ -338,15 +338,15 @@ bool ActuatorStateMachine::shouldActivate(uint8_t channel_idx, float sensor_valu
                     return sensor_value > ch.threshold;
                 }
             } else {
-                // LT mode with inverted hysteresis:
-                // Turn ON when: sensor < threshold
-                // Turn OFF when: sensor > (threshold + hysteresis)
+                // LT mode with inverted hysteresis (cooling with LT config):
+                // Turn ON when: sensor > (threshold + hysteresis)
+                // Turn OFF when: sensor <= threshold
                 if (ch.is_on) {
                     // Currently ON, check if should turn OFF
-                    return sensor_value <= (ch.threshold + ch.hysteresis_value);
+                    return sensor_value > ch.threshold;
                 } else {
                     // Currently OFF, check if should turn ON
-                    return sensor_value < ch.threshold;
+                    return sensor_value > (ch.threshold + ch.hysteresis_value);
                 }
             }
         }
