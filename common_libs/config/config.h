@@ -26,8 +26,12 @@
 #endif
 
 #ifndef INSECURE
-#define INSECURE 0  // Default to secure (wss://) for backward compatibility
+#define INSECURE 0  // Default to secure (wss://)
 #endif
+
+// ChaCha20 Encryption Key (44 characters base64)
+// This key is unique per device and obtained during provisioning
+#define ENCRYPTION_KEY "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
 #ifndef SERVER_PORT
 #define SERVER_PORT 443  // Default port for wss://

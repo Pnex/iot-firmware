@@ -26,6 +26,7 @@
 #include "actuator_config.h"
 #include "proto/actuator_message.pb.h"
 #include "state_machine.h"
+#include "CryptoManager.h"
 
 using namespace websockets;
 
@@ -35,6 +36,7 @@ using namespace websockets;
 WebsocketsClient client;
 DisplayManager displayManager;
 ActuatorStateMachine stateMachine;
+CryptoManager crypto;
 
 // ============================================
 // Connection Management
@@ -96,6 +98,17 @@ void setup() {
     Serial.printf("Server: %s\n", host);
     Serial.println("===============================================\n");
 
+    // Initialize encryption
+    Serial.println("[CRYPTO] Initializing...");
+    if (!crypto.init(ENCRYPTION_KEY)) {
+        Serial.println("[CRYPTO] FATAL: Encryption initialization failed");
+        Serial.println("[CRYPTO] Device will not function without encryption");
+        while(1) {
+            delay(1000);
+            digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+        }
+    }
+
     // Initialize display
     displayManager.init();
 
@@ -137,6 +150,11 @@ void setup() {
     unsigned int decodedLength = decode_base64((const unsigned char*)host, decodedHost);
     decodedHost[decodedLength] = '\0';  // Null-terminate
 
+    // Decoded device id
+    unsigned char decodedID[64];
+    unsigned int decodedIDLength = decode_base64((const unsigned char*)device_id, decodedID);
+    decodedID[decodedIDLength] = '\0';  // Null-terminate
+
     // Build WebSocket connection string
     // Note: token and device_id are kept base64-encoded as the server expects them that way
     sprintf(websockets_connection_string, ws_format, decodedHost, SERVER_PORT, token, device_id);
@@ -176,12 +194,13 @@ void setup() {
     displayManager.showLoadingProgressAnimated("pnex.io", currentProgress, nextProgress, "Waiting PING...", 200);
     currentProgress = nextProgress;
 
-    // Send initial PING
+    // Send initial encrypted PING
     if (websocket_connected) {
         last_ping_time = millis();
         waiting_for_pong = true;
-        client.send("PING");
-        Serial.println("[Setup] Initial PING sent");
+        String encryptedPing = crypto.encrypt("PING");
+        client.send(encryptedPing);
+        Serial.println("[Setup] Initial encrypted PING sent");
 
         // Wait for PONG (max 5 seconds)
         unsigned long pong_wait_start = millis();
@@ -300,12 +319,13 @@ void loop() {
             should_reconnect = true;
             waiting_for_pong = false;
         } else {
-            // Send new PING
+            // Send new encrypted PING
             last_ping_time = now;
             waiting_for_pong = true;
-            client.send("PING");
+            String encryptedPing = crypto.encrypt("PING");
+            client.send(encryptedPing);
             #if DEBUG_SERIAL
-            Serial.println("[Ping] -> PING sent");
+            Serial.println("[Ping] -> Encrypted PING sent");
             #endif
         }
     }
@@ -404,17 +424,30 @@ void connectWebSocket() {
 void onMessageCallback(WebsocketsMessage message) {
     displayManager.showArrowDown();
 
-    if (message.isBinary()) {
-        #if DEBUG_SERIAL
-        Serial.printf("[WS] << Binary message (%d bytes)\n", message.length());
-        #endif
-        handleProtobufMessage((uint8_t*)message.c_str(), message.length());
-    } else {
-        String msg = message.data();
-        msg.trim();
+    // All messages are now encrypted text (base64)
+    if (message.isText()) {
+        String encryptedMsg = message.data();
+        encryptedMsg.trim();
 
-        // Handle PONG response from server
-        if (msg == "PONG") {
+        #if DEBUG_SERIAL
+        Serial.printf("[WS] << Encrypted message (%d bytes)\n", encryptedMsg.length());
+        #endif
+
+        // Decrypt message
+        String decrypted = crypto.decrypt(encryptedMsg);
+        if (decrypted.length() == 0) {
+            Serial.println("[WS] ERROR: Decryption failed");
+            delay(50);
+            displayManager.hideArrowDown();
+            return;
+        }
+
+        #if DEBUG_SERIAL
+        Serial.printf("[WS] << Decrypted (%d bytes)\n", decrypted.length());
+        #endif
+
+        // Check if it's a text message (PONG)
+        if (decrypted == "PONG") {
             last_pong_time = millis();      // Update last PONG time
             waiting_for_pong = false;        // Reset flag
             initial_pong_received = true;    // Mark first PONG received
@@ -423,9 +456,11 @@ void onMessageCallback(WebsocketsMessage message) {
             Serial.printf("[Ping] <- PONG received (RTT: %lu ms)\n", rtt);
             #endif
         } else {
-            Serial.print("[WS] << Text: ");
-            Serial.println(msg);
+            // Otherwise, treat as binary protobuf data
+            handleProtobufMessage((uint8_t*)decrypted.c_str(), decrypted.length());
         }
+    } else {
+        Serial.println("[WS] << Unexpected message type (expected encrypted text)");
     }
 
     delay(50);  // Brief delay to ensure arrow is visible
@@ -512,14 +547,28 @@ void sendStateReport() {
     bool status = pb_encode(&stream, ActuatorState_fields, &state);
 
     if (status) {
-        // Send via WebSocket
+        // Convert binary to String for encryption (using latin1 encoding to preserve bytes)
+        String binaryStr = "";
+        for (size_t i = 0; i < stream.bytes_written; i++) {
+            binaryStr += (char)buffer[i];
+        }
+
+        // Encrypt binary data
+        String encrypted = crypto.encrypt(binaryStr);
+        if (encrypted.length() == 0) {
+            Serial.println("[State] ERROR: Encryption failed");
+            return;
+        }
+
+        // Send encrypted data as text via WebSocket
         displayManager.showArrowUp();
-        client.sendBinary((const char*)buffer, stream.bytes_written);
+        client.send(encrypted);
         delay(50);
         displayManager.hideArrowUp();
 
         #if DEBUG_SERIAL
-        Serial.printf("[State] Sent report (%d bytes)\n", stream.bytes_written);
+        Serial.printf("[State] Sent encrypted report (%d bytes → %d bytes)\n",
+                     stream.bytes_written, encrypted.length());
         #endif
     } else {
         Serial.println("[State] Failed to encode state report");

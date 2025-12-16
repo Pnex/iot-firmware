@@ -6,6 +6,7 @@
 #include <U8g2lib.h>
 #include "DisplayManager.h"
 #include "config.h"
+#include "CryptoManager.h"
 
 // Soil moisture sensor
 #define SOIL_MOISTURE_PIN A0
@@ -15,6 +16,7 @@
 using namespace websockets;
 WebsocketsClient client;
 DisplayManager displayManager;
+CryptoManager crypto;
 
 // temperature sensor
 OneWire oneWire(ONE_WIRE_BUS);
@@ -67,6 +69,17 @@ void setup() {
     // Initialize display
     displayManager.init();
 
+    // Initialize encryption
+    Serial.println("[CRYPTO] Initializing...");
+    if (!crypto.init(ENCRYPTION_KEY)) {
+        Serial.println("[CRYPTO] FATAL: Encryption initialization failed");
+        Serial.println("[CRYPTO] Device will not function without encryption");
+        while(1) {
+            delay(1000);
+            digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+        }
+    }
+
     // Track current progress for smooth animations
     int currentProgress = 0;
 
@@ -106,6 +119,11 @@ void setup() {
     unsigned char decodedHost[64];
     unsigned int decodedLength = decode_base64((const unsigned char*)host, decodedHost);
     decodedHost[decodedLength] = '\0';  // Null-terminate
+
+    // Decoded device id
+    unsigned char decodedID[64];
+    unsigned int decodedIDLength = decode_base64((const unsigned char*)device_id, decodedID);
+    decodedID[decodedIDLength] = '\0';  // Null-terminate
 
     // Build WebSocket connection string
     // Note: token and device_id are kept base64-encoded as the server expects them that way
@@ -157,12 +175,13 @@ void setup() {
     displayManager.showLoadingProgressAnimated("pnex.io", currentProgress, nextProgress, "Waiting PING...", 200);
     currentProgress = nextProgress;
 
-    // Send initial PING
+    // Send initial encrypted PING
     if (websocket_connected) {
         lastPing = millis();
         waiting_for_pong = true;
-        client.send("PING");
-        Serial.println("[Setup] Initial PING sent");
+        String encryptedPing = crypto.encrypt("PING");
+        client.send(encryptedPing);
+        Serial.println("[Setup] Initial encrypted PING sent");
 
         // Wait for PONG (max 5 seconds)
         unsigned long pong_wait_start = millis();
@@ -242,8 +261,9 @@ void loop() {
 	Serial.print("[Sensor] Moisture: ");
 	Serial.println(soilMoisturePercentage);
 	String data = "soil_moisture=" + String(soilMoisturePercentage);
+        String encrypted = crypto.encrypt(data);
         displayManager.showArrowUp();
-	client.send(data);
+	client.send(encrypted);
         displayManager.hideArrowUp();
         displayManager.showValue("Moisture", float(soilMoisturePercentage), "%", 0, 30);
     } else {
@@ -267,8 +287,9 @@ void loop() {
             char tempCStr[8];
             dtostrf(tempC, 4, 2, tempCStr);
             String data = "soil_temperature=" + String(tempCStr);
+            String encrypted = crypto.encrypt(data);
             displayManager.showArrowUp();
-            client.send(data);
+            client.send(encrypted);
             displayManager.hideArrowUp();
             displayManager.showValue("Temp.", tempC, "°C", 0, 40);
         } else {
@@ -386,18 +407,31 @@ void feedWatchdog() {
 void onMessageCallback(WebsocketsMessage message) {
     displayManager.showArrowDown();
 
-    String msg = message.data();
-    msg.trim();
+    String encryptedMsg = message.data();
+    encryptedMsg.trim();
+
+    Serial.printf("[WS] << Encrypted message (%d bytes)\n", encryptedMsg.length());
+
+    // Decrypt message
+    String decrypted = crypto.decrypt(encryptedMsg);
+    if (decrypted.length() == 0) {
+        Serial.println("[WS] ERROR: Decryption failed");
+        delay(50);
+        displayManager.hideArrowDown();
+        return;
+    }
+
+    Serial.printf("[WS] << Decrypted (%d bytes)\n", decrypted.length());
 
     // Handle PONG response from server
-    if (msg == "PONG") {
+    if (decrypted == "PONG") {
         last_pong_time = millis();           // Update last PONG time
         waiting_for_pong = false;            // Reset flag
         initial_pong_received = true;        // Mark first PONG received
         Serial.println("[Ping] <- PONG received");
     } else {
         Serial.print("[WS] Got Message: ");
-        Serial.println(message.data());
+        Serial.println(decrypted);
     }
 
     delay(50);  // Brief delay to ensure arrow is visible
@@ -430,8 +464,9 @@ void onEventsCallback(WebsocketsEvent event, String data) {
 }
 
 void sendPing() {
-    Serial.println("[PROTO] >> PING");
-    client.send("PING");
+    Serial.println("[PROTO] >> Encrypted PING");
+    String encryptedPing = crypto.encrypt("PING");
+    client.send(encryptedPing);
     displayManager.showArrowUp();
     delay(50);
     displayManager.hideArrowUp();

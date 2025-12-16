@@ -30,7 +30,7 @@ jobs:
           context: .
           file: ./Dockerfile
           #TODO: revert arm compatibility later
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64 #,linux/arm64,linux/arm/v7
           push: ${{ github.event_name == 'push' }}
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/pnex-firmware-builder:latest
