@@ -168,8 +168,12 @@ public:
         chacha.setIV(nonce, 12);
         chacha.decrypt(buffer, buffer, dataLen);
 
-        buffer[dataLen] = '\0';
-        String result = String((char*)buffer);
+        // Build String preserving all bytes (including null bytes for binary data)
+        String result;
+        result.reserve(dataLen);
+        for (size_t i = 0; i < dataLen; i++) {
+            result += (char)buffer[i];
+        }
 
         delete[] buffer;
 
